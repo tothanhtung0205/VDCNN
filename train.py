@@ -1,15 +1,17 @@
 import os
 import numpy as np
 import datetime
+from sklearn.externals import joblib
 import tensorflow as tf
-from data_helper import *
+from vn_data_helper import *
+#from data_helper import *
 
 # State which model to use here
 from vdcnn import VDCNN
 
 # Parameters settings
 # Data loading params
-tf.flags.DEFINE_string("database_path", "ag_news_csv/", "Path for the dataset to be used.")
+tf.flags.DEFINE_string("database_path", "dataset/", "Path for the dataset to be used.")
 
 # Model Hyperparameters
 tf.flags.DEFINE_integer("sequence_max_length", 1014, "Sequence Max Length (default: 1024)")
@@ -119,3 +121,4 @@ for train_batch in train_batches:
 		acc_list.append(acc)
 		print("{}: Evaluation Summary, Loss {:g}, Acc {:g}".format(time_str, sum_loss/i, acc))
 		print("{}: Current Max Acc {:g} in Iteration {}".format(time_str, max(acc_list), int(acc_list.index(max(acc_list))*FLAGS.evaluate_every)))
+

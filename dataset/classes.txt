@@ -1,0 +1,7 @@
+0==>Suc khoe
+1==>Khoa hoc Cong nghe
+2==>Kinh doanh
+3==>Chinh tri Xa hoi
+4==>The thao
+5==>Doi song Van hoa
+6==>The gioi
