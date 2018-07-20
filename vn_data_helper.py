@@ -50,7 +50,7 @@ class data_helper():
 					one_hot[i] = 1
 					labels.append(one_hot)
 					print("read file %d" %count )
-				if count>len(files)/10:
+				if count>len(files)/50:
 					break
 		return np.array(all_data), np.array(labels)
 
