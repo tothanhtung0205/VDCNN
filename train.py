@@ -5,6 +5,7 @@ from sklearn.externals import joblib
 import tensorflow as tf
 from vn_data_helper import *
 #from data_helper import *
+import sys
 
 # State which model to use here
 from vdcnn import VDCNN
@@ -23,9 +24,10 @@ tf.flags.DEFINE_boolean("optional_shortcut", False, "Use optional shortcut (defa
 # Training Parameters
 tf.flags.DEFINE_float("learning_rate", 1e-2, "Starter Learning Rate (default: 1e-2)")
 tf.flags.DEFINE_integer("batch_size", 128, "Batch Size (default: 128)")
-tf.flags.DEFINE_integer("num_epochs", 30, "Number of training epochs (default: 50)")
+tf.flags.DEFINE_integer("num_epochs", 50, "Number of training epochs (default: 50)")
 tf.flags.DEFINE_integer("evaluate_every", 50, "Evaluate model on dev set after this many steps (default: 50)")
 tf.flags.DEFINE_boolean("enable_tensorboard", True, "Enable Tensorboard (default: True)")
+
 
 FLAGS = tf.flags.FLAGS
 FLAGS._parse_flags()
@@ -45,7 +47,8 @@ print("Loading data succees...")
 # ConvNet
 acc_list = [0]
 sess = tf.Session()
-cnns = VDCNN(num_classes=train_label.shape[1],
+
+cnn = VDCNN(num_classes=train_label.shape[1],
 	depth=FLAGS.depth,
 	sequence_max_length=FLAGS.sequence_max_length, 
 	downsampling_type=FLAGS.downsampling_type,
@@ -58,15 +61,18 @@ with tf.control_dependencies(update_ops):
 	global_step = tf.Variable(0, name="global_step", trainable=False)
 	learning_rate = tf.train.exponential_decay(FLAGS.learning_rate, global_step, FLAGS.num_epochs*num_batches_per_epoch, 0.95, staircase=True)
 	optimizer = tf.train.MomentumOptimizer(learning_rate, 0.9)
-	gradients, variables = zip(*optimizer.compute_gradients(cnns.loss))
+	gradients, variables = zip(*optimizer.compute_gradients(cnn.loss))
 	gradients, _ = tf.clip_by_global_norm(gradients, 7.0)
 	train_op = optimizer.apply_gradients(zip(gradients, variables), global_step=global_step)
+
+
+saver = tf.train.Saver(tf.global_variables())
 
 # Initialize Graph
 sess.run(tf.global_variables_initializer())
 
 # Train Step and Test Step
-def train_step(x_batch, y_batch,cnn):
+def train_step(x_batch, y_batch):
 	"""
 	A single training step
 	"""
@@ -80,7 +86,7 @@ def train_step(x_batch, y_batch,cnn):
 	#	summaries = sess.run(train_summary_op, feed_dict)
 	#	train_summary_writer.add_summary(summaries, global_step=step)
 
-def test_step(x_batch, y_batch,cnn):
+def test_step(x_batch, y_batch):
 	"""
 	Evaluates model on a dev set
 	"""
@@ -91,13 +97,54 @@ def test_step(x_batch, y_batch,cnn):
 	time_str = datetime.datetime.now().isoformat()
 	return preds, loss
 
+def test_load():
+	checkpoint_file = tf.train.latest_checkpoint("model/")
+	print("Checkpoint file : "+checkpoint_file)
+	graph = tf.Graph()
+	with graph.as_default():
+		sess = tf.Session()
+		with sess.as_default():
+			# Load the saved meta graph and restore variables
+			saver = tf.train.import_meta_graph("{}.meta".format(checkpoint_file))
+			saver.restore(sess, checkpoint_file)
+
+			print("\nEvaluation on loaded data: ")
+			i = 0
+			index = 0
+			sum_loss = 0
+			test_batches = data_helper.batch_iter(list(zip(test_data, test_label)), FLAGS.batch_size, 1, shuffle=False)
+			y_preds = np.ones(shape=len(test_label), dtype=np.int)
+			for test_batch in test_batches:
+				x_test_batch, y_test_batch = zip(*test_batch)
+
+				preds, test_loss = test_step(x_test_batch, y_test_batch)
+
+				# feed_dict = {cnn.input_x: x_test_batch,
+				# 			 cnn.input_y: y_test_batch,
+				# 			 cnn.is_training: False}
+				# test_loss, preds = sess2.run([cnn.loss, cnn.predictions], feed_dict)
+
+				sum_loss += test_loss
+				res = np.absolute(preds - np.argmax(y_test_batch, axis=1))
+				y_preds[index:index + len(res)] = res
+				i += 1
+				index += len(res)
+
+			time_str = datetime.datetime.now().isoformat()
+			acc = np.count_nonzero(y_preds == 0) / len(y_preds)
+			acc_list.append(acc)
+			print("{}: Evaluation Summary, Loss {:g}, Acc {:g}".format(time_str, sum_loss / i, acc))
+
+
+
 # Generate batches
 train_batches = data_helper.batch_iter(list(zip(train_data, train_label)), FLAGS.batch_size, FLAGS.num_epochs)
 
 # Training loop. For each batch...
+max_acc = 0
 for train_batch in train_batches:
 	x_batch, y_batch = zip(*train_batch)
-	train_step(x_batch, y_batch,cnns)
+	train_step(x_batch, y_batch)
 	current_step = tf.train.global_step(sess, global_step)
 	# Testing loop
 	if current_step % FLAGS.evaluate_every == 0:
@@ -109,7 +156,7 @@ for train_batch in train_batches:
 		y_preds = np.ones(shape=len(test_label), dtype=np.int)
 		for test_batch in test_batches:
 			x_test_batch, y_test_batch = zip(*test_batch)
-			preds, test_loss = test_step(x_test_batch, y_test_batch,cnns)
+			preds, test_loss = test_step(x_test_batch, y_test_batch)
 			sum_loss += test_loss
 			res = np.absolute(preds - np.argmax(y_test_batch, axis=1))
 			y_preds[index:index+len(res)] = res
@@ -121,33 +168,11 @@ for train_batch in train_batches:
 		acc_list.append(acc)
 		print("{}: Evaluation Summary, Loss {:g}, Acc {:g}".format(time_str, sum_loss/i, acc))
 		print("{}: Current Max Acc {:g} in Iteration {}".format(time_str, max(acc_list), int(acc_list.index(max(acc_list))*FLAGS.evaluate_every)))
+		if acc > max_acc:
+			max_acc = acc
+			path = saver.save(sess, "model/", global_step=current_step)
+			print("Saved model checkpoint to {}\n".format(path))
 
 
-def test_model(cnn):
-	print("\nEvaluation: by test model")
-	i = 0
-	index = 0
-	sum_loss = 0
-	test_batches = data_helper.batch_iter(list(zip(test_data, test_label)), FLAGS.batch_size, 1, shuffle=False)
-	y_preds = np.ones(shape=len(test_label), dtype=np.int)
-	for test_batch in test_batches:
-		x_test_batch, y_test_batch = zip(*test_batch)
-		preds, test_loss = test_step(x_test_batch, y_test_batch,cnn)
-		sum_loss += test_loss
-		res = np.absolute(preds - np.argmax(y_test_batch, axis=1))
-		y_preds[index:index + len(res)] = res
-		i += 1
-		index += len(res)
-
-	time_str = datetime.datetime.now().isoformat()
-	acc = np.count_nonzero(y_preds == 0) / len(y_preds)
-	acc_list.append(acc)
-	print("{}: Evaluation Summary, Loss {:g}, Acc {:g}".format(time_str, sum_loss / i, acc))
-	print("{}: Current Max Acc {:g} in Iteration {}".format(time_str, max(acc_list),
-															int(acc_list.index(max(acc_list)) * FLAGS.evaluate_every)))
 
 
-joblib.dump(cnns, "cnn_model.pkl")
-
-cnn2 = joblib.load("cnn_model.pkl")
-test_model(cnn2)

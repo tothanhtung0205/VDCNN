@@ -1,8 +1,7 @@
 import csv
-from itertools import count
 
+from sklearn.utils import shuffle
 import numpy as np
-from glob import glob
 import os
 from io import open
 
@@ -49,9 +48,9 @@ class data_helper():
 					one_hot = np.zeros(num_classes)
 					one_hot[i] = 1
 					labels.append(one_hot)
-					print("read file %d" %count )
-				if count>len(files)/50:
-					break
+				# if count>len(files)/100:
+				# 	#todo
+				# 	break
 		return np.array(all_data), np.array(labels)
 
 	def load_dataset(self, dataset_path):
