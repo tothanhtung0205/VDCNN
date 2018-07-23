@@ -81,7 +81,7 @@ class VDCNN():
         # input tensors
         self.input_x = tf.placeholder(tf.int32, [None, sequence_max_length], name="input_x")
         self.input_y = tf.placeholder(tf.float32, [None, num_classes], name="input_y")
-        self.is_training =  tf.placeholder(tf.bool)
+        self.is_training =  tf.placeholder(tf.bool, name="is_training")
 
         # Embedding Lookup 16
         with tf.device('/cpu:0'), tf.name_scope("embedding"):
