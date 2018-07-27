@@ -8,10 +8,11 @@ from keras.layers import Input, Dense, Dropout, Lambda
 from keras.layers.pooling import MaxPooling1D
 from keras.optimizers import SGD
 
-from utils import get_conv_shape
+def get_conv_shape(conv):
+    return conv.get_shape().as_list()[1:]
 
 
-def build_model(num_filters, num_classes, sequence_max_length=512, num_quantized_chars=71, embedding_size=16, learning_rate=0.001, top_k=3, model_path=None):
+def build_model(num_filters, num_classes, sequence_max_length=512, num_quantized_chars=69, embedding_size=16, learning_rate=0.001, top_k=3, model_path=None):
 
     inputs = Input(shape=(sequence_max_length, ), dtype='int32', name='inputs')
 
