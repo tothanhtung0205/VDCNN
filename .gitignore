@@ -1,0 +1,6 @@
+todos.md
+.idea/
+__pycache__
+*.tar.gz
+model/
+*.pyc
