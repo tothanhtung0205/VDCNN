@@ -53,7 +53,11 @@ class data_helper():
 				# 	break
 		return np.array(all_data), np.array(labels)
 
-	def load_dataset(self, dataset_path):
+	def load_test_data(self,datasetpath):
+		test_data,test_label = self.load_txt_file(datasetpath+'test/',num_classes_=7)
+		return test_data,test_label
+
+	def load_dataset(self, dataset_path, validation_split = 0.1):
 		# Read Classes Info
 		with open(dataset_path+"classes.txt") as f:
 			classes = []
@@ -63,8 +67,11 @@ class data_helper():
 		num_classes = len(classes)
 		# Read CSV Info
 		train_data, train_label = self.load_txt_file(dataset_path+'train/', num_classes)
-		test_data, test_label = self.load_txt_file(dataset_path+'test/', num_classes)
-		return train_data, train_label, test_data, test_label
+		size = len(train_label)
+		vld_index = int(size * validation_split)
+		dev_data,dev_label = train_data[:vld_index],train_label[:vld_index]
+		train_data,train_label = train_data[vld_index:																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																				],train_label[vld_index:]
+		return train_data, train_label, dev_data, dev_label
 
 	def batch_iter(self, data, batch_size, num_epochs, shuffle=True):
 		"""

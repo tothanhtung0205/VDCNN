@@ -15,7 +15,7 @@ from vdcnn import VDCNN
 tf.flags.DEFINE_string("database_path", "dataset/", "Path for the dataset to be used.")
 
 # Model Hyperparameters
-tf.flags.DEFINE_integer("sequence_max_length", 1014, "Sequence Max Length (default: 1024)")
+tf.flags.DEFINE_integer("sequence_max_length", 1024, "Sequence Max Length (default: 1024)")
 tf.flags.DEFINE_string("downsampling_type", "maxpool", "Types of downsampling methods, use either three of maxpool, k-maxpool and linear (default: 'maxpool')")
 tf.flags.DEFINE_integer("depth", 9, "Depth for VDCNN, use either 9, 17, 29 or 47 (default: 9)")
 tf.flags.DEFINE_boolean("use_he_uniform", True, "Initialize embedding lookup with he_uniform (default: True)")
@@ -41,6 +41,7 @@ print("")
 print("Loading data...")
 data_helper = data_helper(sequence_max_length=FLAGS.sequence_max_length)
 train_data, train_label, test_data, test_label = data_helper.load_dataset(FLAGS.database_path)
+print(" Training on %d samples validate on %d samples " %(len(train_label), len(test_label)))
 num_batches_per_epoch = int((len(train_data)-1)/FLAGS.batch_size) + 1
 print("Loading data succees...")
 
